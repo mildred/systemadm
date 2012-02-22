@@ -1,0 +1,35 @@
+#!/bin/sh
+
+action="$1"
+shift
+
+case "$action" in
+  get)
+    case "$1" in
+      hostname)
+        hostname
+        ;;
+      libexec)
+        if [ -d /usr/libexec ]; then
+          echo true
+        else
+          echo false
+        fi
+        ;;
+      *)
+        exit 1
+        ;;
+    esac
+    ;;
+  list)
+    cat <<EOF
+hostname
+libexec
+EOF
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+
+

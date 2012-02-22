@@ -1,0 +1,122 @@
+#!/bin/bash
+
+if [ -z "$SYSTEMADM_PATH" ]; then
+  prefix="`dirname "$0"`/.."
+  if [ -d "$prefix/libexec/systemadm" ]; then
+    path_from_prefix="libexec/systemadm"
+  elif [ -d "$prefix/lib/systemadm" ]; then
+    path_from_prefix="lib/systemadm"
+  else
+    exec >&2
+    cd "$prefix"
+    echo "$(pwd)/libexec/systemadm: No such file or directory"
+    echo "$(pwd)/lib/systemadm: No such file or directory"
+    exit 1
+  fi
+  SYSTEMADM_PATH="$(cd "$prefix/$path_from_prefix" && pwd)"
+fi
+
+action=
+
+while [ -n "$1" ]; do
+  case "$1" in
+    -help)
+      action=help
+      break
+      ;;
+    *)
+      action="$1"
+      break
+      ;;
+  esac
+  shift
+done
+
+shift
+
+subcommand=
+find_subcommand(){
+  local old_IFS="$IFS"
+  IFS=:
+  for p in $SYSTEMADM_PATH; do
+    if [ -x "$p/$1" ]; then
+      subcommand="$p/$1"
+      return 0
+    fi
+  done
+  IFS="$old_IFS"
+  subcommand=
+  return 1
+}
+
+find_all_subcommands(){
+  local old_IFS="$IFS"
+  IFS=:
+  for p in $SYSTEMADM_PATH; do
+    for sc in "$p"/*; do
+      if [ -x "$sc" ]; then
+        echo "$sc"
+      fi
+    done
+  done
+  IFS="$old_IFS"
+}
+
+error(){
+  exec >&2
+  echo "$@"
+  exit 1
+}
+
+case "$action" in
+  get|set)
+    if find_subcommand "$1"; then
+      shift
+      exec "$subcommand" "$action" "$@"
+    else
+      error "Could not find $1"
+    fi
+    ;;
+  list)
+    find_all_subcommands | while read subc; do
+      basename_subc="`basename "$subc"`"
+      "$subc" list | while read item; do
+        echo "$basename_subc" "$item"
+      done
+    done
+    ;;
+  *)
+    echo
+    echo "NAME"
+    echo "    `basename "$0"` - system administration"
+    echo
+    echo "SYNOPSIS"
+    echo "    `basename "$0"` OPTIONS COMMAND"
+    echo
+    echo "COMMANDS"
+    echo "    get [WORD...]"
+    echo "        get an option and print in on the standard output"
+    echo
+    echo "    set [WORD...]"
+    echo "        set an option from the standard input"
+    echo
+    echo "    list"
+    echo "        list on the standard output all available options"
+    echo
+    echo "SPECIAL PATHS"
+    echo "    The following paths are searched for sub-commands:"
+    old_IFS="$IFS"
+    IFS=:
+    for p in $SYSTEMADM_PATH; do
+      echo "        $p"
+    done
+    IFS="$old_IFS"
+    echo
+    if [ help = "$action" ]; then
+      exit 0
+    else
+      exit 1
+    fi
+    ;;
+esac
+
